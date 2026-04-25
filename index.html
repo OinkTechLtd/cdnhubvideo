@@ -5,19 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>CDNVideoHub</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        body {
-            background: #000;
-            min-height: 100vh;
-            color: #fff;
-            font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-        }
-        /* Полноэкранный плеер */
-        .player-full {
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #000; font-family: system-ui, sans-serif; }
+        
+        /* Плеер на весь экран */
+        .player {
             position: fixed;
             top: 0;
             left: 0;
@@ -28,7 +20,8 @@
             flex-direction: column;
             z-index: 1000;
         }
-        .player-bar {
+        
+        .top-bar {
             background: rgba(0,0,0,0.9);
             padding: 10px 16px;
             display: flex;
@@ -36,124 +29,112 @@
             align-items: center;
             border-bottom: 1px solid rgba(255,255,255,0.1);
         }
-        .kp-badge {
-            font-size: 13px;
-            background: rgba(0,188,212,0.15);
+        
+        .id-badge {
+            background: rgba(0,188,212,0.2);
             padding: 5px 12px;
             border-radius: 20px;
+            font-size: 13px;
             font-family: monospace;
         }
-        .kp-badge span {
-            color: #00BCD4;
-            font-weight: bold;
-        }
+        
+        .id-badge span { color: #00BCD4; font-weight: bold; }
+        
         .close-btn {
             background: rgba(255,255,255,0.1);
             border: none;
             color: white;
-            font-size: 22px;
+            font-size: 24px;
             cursor: pointer;
-            width: 34px;
-            height: 34px;
+            width: 36px;
+            height: 36px;
             border-radius: 50%;
-            transition: 0.2s;
         }
-        .close-btn:hover {
-            background: #ff4444;
-        }
-        .sources-panel {
+        
+        .close-btn:hover { background: #ff4444; }
+        
+        .sources {
             background: rgba(0,0,0,0.85);
             padding: 10px 16px;
             display: flex;
             gap: 8px;
             overflow-x: auto;
-            white-space: nowrap;
             border-bottom: 1px solid rgba(255,255,255,0.1);
         }
-        .sources-panel::-webkit-scrollbar {
-            height: 3px;
-        }
-        .sources-panel::-webkit-scrollbar-thumb {
-            background: #00BCD4;
-            border-radius: 3px;
-        }
-        .source {
-            background: rgba(255,255,255,0.08);
-            border: 1px solid rgba(255,255,255,0.15);
+        
+        .source-btn {
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
             color: white;
             padding: 6px 14px;
             border-radius: 30px;
             font-size: 12px;
             cursor: pointer;
-            transition: 0.2s;
             flex-shrink: 0;
         }
-        .source.active {
+        
+        .source-btn.active {
             background: linear-gradient(135deg, #00BCD4, #4CAF50);
             border-color: transparent;
         }
-        .source:hover:not(.active) {
-            background: rgba(0,188,212,0.3);
-        }
-        .video-container {
+        
+        .video-box {
             flex: 1;
             position: relative;
             background: #000;
         }
-        iframe {
+        
+        iframe, #cdnContainer {
             width: 100%;
             height: 100%;
             border: none;
         }
-        .cdn-placeholder {
-            width: 100%;
-            height: 100%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            background: #000;
-        }
+        
+        /* Сообщение, если нет ID */
         .no-id {
             position: fixed;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            text-align: center;
-            color: rgba(255,255,255,0.6);
             background: rgba(0,0,0,0.9);
             padding: 24px 32px;
             border-radius: 16px;
+            text-align: center;
             border: 1px solid #00BCD4;
-            z-index: 1;
-            font-size: 14px;
+            color: white;
         }
+        
         .no-id code {
             display: block;
             margin-top: 12px;
             color: #00BCD4;
-            font-size: 16px;
         }
     </style>
 </head>
 <body>
 
-<!-- Плеер -->
-<div id="player" class="player-full" style="display: none;">
-    <div class="player-bar">
-        <div class="kp-badge">🎬 ID: <span id="filmIdLabel">—</span></div>
+<!-- Сам плеер -->
+<div id="playerScreen" class="player" style="display: none;">
+    <div class="top-bar">
+        <div class="id-badge">🎬 ID: <span id="currentId">—</span></div>
         <button class="close-btn" onclick="closePlayer()">✕</button>
     </div>
-    <div class="sources-panel" id="sourcesList"></div>
-    <div class="video-container">
-        <iframe id="videoIframe" src="" style="display: none;"></iframe>
-        <div id="cdnHolder" class="cdn-placeholder"></div>
+    <div class="sources" id="sourcesPanel"></div>
+    <div class="video-box">
+        <iframe id="iframePlayer" src="" style="display: none;"></iframe>
+        <div id="cdnContainer">🎬 Загрузка плеера...</div>
     </div>
 </div>
 
-
+<!-- Сообщение, если ID не указан -->
+<div id="noIdScreen" class="no-id">
+    ⚡ CDNVideoHub<br>
+    <code>#kp/ID_КИНОПОИСКА</code>
+    <div style="margin-top: 8px; font-size: 12px;">Пример: #kp/301</div>
+</div>
 
 <script>
-    // ========== ИСТОЧНИКИ ==========
+    // === СПИСОК ИСТОЧНИКОВ ===
     const SOURCES = [
         { id: 'cdn', name: '🎥 CDNVideoHub', type: 'cdn' },
         { id: 'src1', name: 'Источник 1', url: 'https://api1690380040.atomics.ws/embed/kp/' },
@@ -161,222 +142,235 @@
         { id: 'src3', name: 'Источник 3', url: 'https://api.marts.ws/embed/movie/' },
         { id: 'src4', name: 'Источник 4', url: 'https://api.domem.ws/embed/movie/' },
         { id: 'src5', name: 'Источник 5', url: 'https://5414e3c9.obrut.show/embed/kDN?kinopoisk_id=' },
-        { id: 'src6', name: 'Источник 6', url: 'https://api.embess.ws/embed/kp/' },
-        { id: 'src7', name: 'Источник 7', url: 'https://www.kinopoisk.one/film/' },
-        { id: 'src8', name: 'Источник 8', url: 'https://www.kinopoisk.cfd/film/' },
-        { id: 'src9', name: 'Источник 9', url: 'https://www.kinopoisk.vip/film/' },
-        { id: 'src10', name: 'Источник 10', url: 'https://api.namy.ws/embed/movie/' },
-        { id: 'src11', name: 'Источник 11', url: 'https://kinokot.net/video/embed/' }
+        { id: 'src6', name: 'Источник 6', url: 'https://api.embess.ws/embed/kp/' }
     ];
 
-    let currentId = null;
-    let activeSource = 'cdn';
-    let cdnScriptLoaded = false;
+    let currentKinopoiskId = null;
+    let activeSourceId = 'cdn';
+    let cdnInitialized = false;
 
-    // Элементы
-    const playerDiv = document.getElementById('player');
-    const noIdDiv = document.getElementById('noIdMessage');
-    const filmLabel = document.getElementById('filmIdLabel');
-    const sourcesPanel = document.getElementById('sourcesList');
-    const videoIframe = document.getElementById('videoIframe');
-    const cdnHolder = document.getElementById('cdnHolder');
-
-    // ========== ПОЛУЧИТЬ ID ИЗ ХЕША ==========
+    // Получаем ID из хеша (#kp/123456)
     function getIdFromHash() {
         const hash = window.location.hash;
         const match = hash.match(/#kp\/(\d+)/);
-        if (match && match[1]) return match[1];
-        // Также пробуем вариант без слеша: #kp123
-        const match2 = hash.match(/#kp(\d+)/);
-        if (match2 && match2[1]) return match2[1];
-        return null;
+        return match ? match[1] : null;
     }
 
-    // ========== ЗАГРУЗИТЬ CDN ПЛЕЕР ==========
-    function loadCDN(id) {
-        cdnHolder.style.display = 'flex';
-        videoIframe.style.display = 'none';
+    // Обновляем URL (убираем хеш при закрытии)
+    function clearHash() {
+        window.location.hash = '';
+    }
+
+    // === ЗАГРУЗКА CDN ПЛЕЕРА (С ПРИНУДИТЕЛЬНЫМ СОЗДАНИЕМ) ===
+    function loadCDNPlayer(id) {
+        const container = document.getElementById('cdnContainer');
+        const iframe = document.getElementById('iframePlayer');
+        
+        iframe.style.display = 'none';
+        container.style.display = 'flex';
         
         // Очищаем и показываем загрузку
-        cdnHolder.innerHTML = '<div style="text-align:center; color:#888;">🎬 Загрузка CDNVideoHub...<br><span style="font-size:12px;">ID: '+id+'</span></div>';
+        container.innerHTML = `<div style="text-align:center; padding:20px;">🎬 Загрузка CDNVideoHub...<br>ID: ${id}</div>`;
         
-        // Удаляем старый плеер
-        const old = document.getElementById('cdnPlayerEl');
-        if (old) old.remove();
+        // Удаляем старый элемент плеера, если есть
+        const oldPlayer = document.getElementById('customCdnPlayer');
+        if (oldPlayer) oldPlayer.remove();
         
         // Создаём новый video-player
-        const player = document.createElement('video-player');
-        player.id = 'cdnPlayerEl';
-        player.setAttribute('data-publisher-id', '1617');
-        player.setAttribute('data-title-id', id);
-        player.setAttribute('data-aggregator', 'kp');
-        player.style.width = '100%';
-        player.style.height = '100%';
+        const videoPlayer = document.createElement('video-player');
+        videoPlayer.id = 'customCdnPlayer';
+        videoPlayer.setAttribute('data-publisher-id', '1617');
+        videoPlayer.setAttribute('data-title-id', id);
+        videoPlayer.setAttribute('data-aggregator', 'kp');
+        videoPlayer.style.width = '100%';
+        videoPlayer.style.height = '100%';
         
-        cdnHolder.innerHTML = '';
-        cdnHolder.appendChild(player);
+        container.innerHTML = '';
+        container.appendChild(videoPlayer);
         
-        // Загружаем скрипт если ещё нет
-        if (!cdnScriptLoaded) {
+        // Если скрипт CDNVideoHub ещё не загружен — загружаем
+        if (!cdnInitialized) {
             const script = document.createElement('script');
             script.src = 'https://player.cdnvideohub.com/s2/stable/video-player.umd.js';
             script.onload = () => {
-                cdnScriptLoaded = true;
-                // Пересоздаём после загрузки
-                if (currentId == id && activeSource === 'cdn') {
-                    recreateCDN(id);
+                cdnInitialized = true;
+                // После загрузки скрипта пересоздаём плеер, чтобы он точно подхватился
+                if (currentKinopoiskId == id && activeSourceId === 'cdn') {
+                    recreateCDNPlayer(id);
                 }
             };
             script.onerror = () => {
-                cdnHolder.innerHTML = '<div style="text-align:center; color:#ff8888;">❌ Ошибка загрузки CDNVideoHub</div>';
+                container.innerHTML = '<div style="text-align:center; color:#ff8888;">❌ Не удалось загрузить CDNVideoHub. Попробуйте другой источник.</div>';
             };
             document.head.appendChild(script);
         }
     }
     
-    function recreateCDN(id) {
-        if (activeSource !== 'cdn' || currentId != id) return;
-        const old = document.getElementById('cdnPlayerEl');
+    function recreateCDNPlayer(id) {
+        if (activeSourceId !== 'cdn' || currentKinopoiskId != id) return;
+        const container = document.getElementById('cdnContainer');
+        if (!container) return;
+        
+        const old = document.getElementById('customCdnPlayer');
         if (old) old.remove();
         
         const newPlayer = document.createElement('video-player');
-        newPlayer.id = 'cdnPlayerEl';
+        newPlayer.id = 'customCdnPlayer';
         newPlayer.setAttribute('data-publisher-id', '1617');
         newPlayer.setAttribute('data-title-id', id);
         newPlayer.setAttribute('data-aggregator', 'kp');
         newPlayer.style.width = '100%';
         newPlayer.style.height = '100%';
         
-        cdnHolder.innerHTML = '';
-        cdnHolder.appendChild(newPlayer);
+        container.innerHTML = '';
+        container.appendChild(newPlayer);
     }
     
-    // Загрузка iframe источника
-    function loadIframe(sourceId, id) {
-        const src = SOURCES.find(s => s.id === sourceId);
-        if (!src || src.type === 'cdn') return;
+    // Загрузка iframe-источника
+    function loadIframeSource(sourceId, id) {
+        const source = SOURCES.find(s => s.id === sourceId);
+        if (!source || source.type === 'cdn') return;
         
-        videoIframe.style.display = 'block';
-        cdnHolder.style.display = 'none';
-        videoIframe.src = src.url + id;
+        const iframe = document.getElementById('iframePlayer');
+        const container = document.getElementById('cdnContainer');
+        
+        container.style.display = 'none';
+        iframe.style.display = 'block';
+        iframe.src = source.url + id;
     }
-
-    // ========== ПЕРЕКЛЮЧЕНИЕ ИСТОЧНИКА ==========
+    
+    // Переключение источника
     function switchSource(sourceId) {
-        if (!currentId) return;
-        activeSource = sourceId;
+        if (!currentKinopoiskId) return;
         
-        // Обновить кнопки
-        document.querySelectorAll('.source').forEach(btn => {
-            if (btn.dataset.id === sourceId) btn.classList.add('active');
-            else btn.classList.remove('active');
+        activeSourceId = sourceId;
+        
+        // Обновить активную кнопку
+        document.querySelectorAll('.source-btn').forEach(btn => {
+            if (btn.dataset.id === sourceId) {
+                btn.classList.add('active');
+            } else {
+                btn.classList.remove('active');
+            }
         });
         
         if (sourceId === 'cdn') {
-            loadCDN(currentId);
+            loadCDNPlayer(currentKinopoiskId);
         } else {
-            loadIframe(sourceId, currentId);
+            loadIframeSource(sourceId, currentKinopoiskId);
         }
     }
     
-    // ========== ПОСТРОИТЬ ПАНЕЛЬ ИСТОЧНИКОВ ==========
-    function buildSources() {
-        sourcesPanel.innerHTML = '';
-        SOURCES.forEach(s => {
+    // Построить панель с кнопками
+    function buildSourcesPanel() {
+        const panel = document.getElementById('sourcesPanel');
+        panel.innerHTML = '';
+        
+        SOURCES.forEach(src => {
             const btn = document.createElement('button');
-            btn.className = 'source';
-            if (s.id === activeSource) btn.classList.add('active');
-            btn.textContent = s.name;
-            btn.dataset.id = s.id;
-            btn.onclick = () => switchSource(s.id);
-            sourcesPanel.appendChild(btn);
+            btn.className = 'source-btn';
+            if (src.id === activeSourceId) btn.classList.add('active');
+            btn.textContent = src.name;
+            btn.dataset.id = src.id;
+            btn.onclick = () => switchSource(src.id);
+            panel.appendChild(btn);
         });
     }
     
-    // ========== ОТКРЫТЬ ПЛЕЕР ==========
+    // === ОТКРЫТЬ ПЛЕЕР С ID ===
     function openPlayer(id) {
         if (!id || isNaN(id)) return;
         
-        currentId = parseInt(id);
-        filmLabel.textContent = currentId;
+        currentKinopoiskId = parseInt(id);
+        document.getElementById('currentId').innerText = currentKinopoiskId;
         
-        // Спрятать сообщение, показать плеер
-        noIdDiv.style.display = 'none';
-        playerDiv.style.display = 'flex';
+        // Показать плеер, спрятать заглушку
+        document.getElementById('playerScreen').style.display = 'flex';
+        document.getElementById('noIdScreen').style.display = 'none';
         
-        // Построить панель если пусто
-        if (sourcesPanel.children.length === 0) {
-            buildSources();
+        // Построить панель, если ещё не построена
+        if (document.getElementById('sourcesPanel').children.length === 0) {
+            buildSourcesPanel();
         }
         
-        // Активный источник - CDN
-        activeSource = 'cdn';
-        document.querySelectorAll('.source').forEach(btn => {
+        // Активируем CDN источник
+        activeSourceId = 'cdn';
+        document.querySelectorAll('.source-btn').forEach(btn => {
             if (btn.dataset.id === 'cdn') btn.classList.add('active');
             else btn.classList.remove('active');
         });
         
-        // Загружаем видео
-        loadCDN(currentId);
+        // Загружаем плеер
+        loadCDNPlayer(currentKinopoiskId);
+        
+        // АЛЬТЕРНАТИВНЫЙ МЕТОД: если через 3 секунды плеер не появился — пробуем пересоздать
+        setTimeout(() => {
+            if (currentKinopoiskId == id && activeSourceId === 'cdn') {
+                const container = document.getElementById('cdnContainer');
+                if (container && container.innerHTML.indexOf('video-player') === -1) {
+                    console.log('Плеер не загрузился, пробуем ещё раз');
+                    loadCDNPlayer(id);
+                }
+            }
+        }, 3000);
     }
     
-    // ========== ЗАКРЫТЬ ==========
+    // === ЗАКРЫТЬ ПЛЕЕР ===
     function closePlayer() {
-        // Очищаем всё
-        videoIframe.src = '';
-        cdnHolder.innerHTML = '<div style="text-align:center; color:#888;">🎬 Плеер закрыт</div>';
-        videoIframe.style.display = 'none';
-        cdnHolder.style.display = 'flex';
+        // Останавливаем видео
+        const iframe = document.getElementById('iframePlayer');
+        if (iframe) iframe.src = '';
         
-        playerDiv.style.display = 'none';
-        noIdDiv.style.display = 'flex';
-        currentId = null;
+        // Скрываем плеер, показываем заглушку
+        document.getElementById('playerScreen').style.display = 'none';
+        document.getElementById('noIdScreen').style.display = 'flex';
         
-        // Убираем хеш, чтобы при обновлении не открывалось
-        window.location.hash = '';
+        // Очищаем ID
+        currentKinopoiskId = null;
+        
+        // Убираем хеш из URL
+        clearHash();
     }
     
-    // ========== ОБРАБОТКА СМЕНЫ ХЕША ==========
-    function onHashChange() {
+    // === СЛЕДИМ ЗА ИЗМЕНЕНИЕМ URL ===
+    function handleHashChange() {
         const id = getIdFromHash();
-        console.log('Hash changed, id:', id);
+        console.log('Хеш изменился, ID:', id);
         
         if (id && parseInt(id) > 0) {
-            if (currentId == id && playerDiv.style.display === 'flex') {
-                return; // уже открыт
+            // Если плеер уже открыт с этим ID — не переоткрываем
+            if (currentKinopoiskId == id && document.getElementById('playerScreen').style.display === 'flex') {
+                return;
             }
             openPlayer(id);
         } else {
-            if (playerDiv.style.display === 'flex') {
+            // Нет ID — закрываем плеер
+            if (document.getElementById('playerScreen').style.display === 'flex') {
                 closePlayer();
-            } else {
-                noIdDiv.style.display = 'flex';
-                playerDiv.style.display = 'none';
             }
         }
     }
     
-    // ========== СТАРТ ==========
+    // === ЗАПУСК ===
     window.addEventListener('load', () => {
-        onHashChange();
+        handleHashChange();
     });
-    window.addEventListener('hashchange', onHashChange);
-    window.addEventListener('popstate', onHashChange);
     
-    // Глобально для кнопки
+    window.addEventListener('hashchange', handleHashChange);
+    window.addEventListener('popstate', handleHashChange);
+    
+    // Глобально для кнопки закрытия
     window.closePlayer = closePlayer;
     
-    // Дополнительная проверка каждые 500 мс на случай костылей Vercel (на всякий случай)
+    // ПРОВЕРКА КАЖДУЮ СЕКУНДУ (на случай, если хеш изменился через сторонний скрипт)
     setInterval(() => {
         const id = getIdFromHash();
         if (id && parseInt(id) > 0) {
-            if (!currentId || currentId != id || playerDiv.style.display !== 'flex') {
+            if (!currentKinopoiskId || currentKinopoiskId != id || document.getElementById('playerScreen').style.display !== 'flex') {
                 openPlayer(id);
             }
-        } else if (currentId && playerDiv.style.display === 'flex') {
-            closePlayer();
         }
-    }, 800);
+    }, 1000);
 </script>
 </body>
 </html>
