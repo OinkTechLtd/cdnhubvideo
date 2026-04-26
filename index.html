@@ -814,11 +814,6 @@
     document.getElementById('searchInput').addEventListener('keypress', function(e) {
         if (e.key === 'Enter') searchContent();
     });
-
-    // Частицы — рандомная задержка
-    document.querySelectorAll('.particle').forEach(function(p) {
-        p.style.animationDelay = (Math.random() * 5) + 's';
-    });
 </script>
 </body>
 </html>
