@@ -447,11 +447,11 @@
 <!-- ПЛЕЕР (полный экран) -->
 <div id="playerModal" class="player-modal">
     <div class="player-header">
+    <div class="sources-row" id="sourcesList"></div>
         <div class="player-right">
         </div>
     </div>
 
-    <div class="sources-row" id="sourcesList"></div>
 
     <div class="player-video-area">
         <iframe id="playerIframe" class="player-iframe" src="" allowfullscreen></iframe>
@@ -459,6 +459,7 @@
             <div id="cdnStatusText">🎬 Инициализация CDNVideoHub...</div>
             <div class="cdn-loader-bar-bg">
                 <div class="cdn-loader-bar" id="cdnLoaderBar"></div>
+                <div class="player-title" id="playerFilmTitle">Загрузка...</div>
             </div>
         </div>
     </div>
